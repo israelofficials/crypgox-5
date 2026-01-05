@@ -1,7 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useAdminAuth } from '@/contexts/AdminAuthContext'
 
@@ -26,14 +25,10 @@ export default function AdminLoginPage() {
 }
 
 function AdminLoginContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const { login, isLoading, error, clearError } = useAdminAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const redirectTo = useMemo(() => searchParams.get('redirect') || '/admin', [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,8 +38,10 @@ function AdminLoginContent() {
     setIsSubmitting(true)
     try {
       await login(username, password)
-      router.replace(redirectTo)
-    } catch (err) {
+      // Don't manually redirect - let AdminAuthContext useEffect handle it
+      // This ensures the admin state is properly set and cookie is available
+      // The useEffect will redirect when admin is set and we're on login page
+    } catch {
       // error handled by context
     } finally {
       setIsSubmitting(false)

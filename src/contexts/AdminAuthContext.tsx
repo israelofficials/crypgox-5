@@ -215,10 +215,16 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
   }, [])
 
   useEffect(() => {
+    if (!pathname?.startsWith('/admin') || pathname === ADMIN_LOGIN_PATH) {
+      setIsLoading(false)
+      setAdmin(null)
+      return
+    }
+
     fetchProfile()
       .catch(() => null)
       .finally(() => setIsLoading(false))
-  }, [fetchProfile])
+  }, [fetchProfile, pathname])
 
   useEffect(() => {
     if (isLoading) return
@@ -236,7 +242,10 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
       const redirect = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search).get('redirect')
         : null
-      router.replace(redirect || ADMIN_HOME_PATH)
+      // Use window.location.href for full page reload to ensure cookies are sent
+      // This is important for cross-subdomain cookie handling
+      const targetPath = redirect || ADMIN_HOME_PATH
+      window.location.href = targetPath
     }
   }, [admin, isLoading, pathname, router])
 

@@ -77,14 +77,20 @@ const LoginPageContent = () => {
     clearError()
     try {
       const response = await requestOtp(phoneNumber)
-      setStep('otp')
-      setDevOtp(response.devOtp ?? null)
-      const expiresInSeconds = Math.max(0, Math.floor((response.expiresAt - Date.now()) / 1000))
-      setTimer(expiresInSeconds || 40)
-      setOtpValues(Array(4).fill(''))
-      setRequiresName(Boolean(response.requiresName))
-      setPendingOtp('')
-      setName('')
+      // Only proceed to OTP step if request was successful
+      if (response && response.expiresAt) {
+        setStep('otp')
+        setDevOtp(response.devOtp ?? null)
+        const expiresInSeconds = Math.max(0, Math.floor((response.expiresAt - Date.now()) / 1000))
+        setTimer(expiresInSeconds || 40)
+        setOtpValues(Array(4).fill(''))
+        setRequiresName(Boolean(response.requiresName))
+        setPendingOtp('')
+        setName('')
+      }
+    } catch {
+      // Error is already set by requestOtp in AuthContext
+      // Don't proceed to OTP step if request failed
     } finally {
       setIsRequesting(false)
     }
@@ -114,6 +120,8 @@ const LoginPageContent = () => {
     const code = otpValues.join('')
 
     if (requiresName) {
+      // Store OTP and move to name step
+      // We'll verify OTP when submitting name to avoid expiration issues
       setPendingOtp(code)
       setStep('name')
       return
@@ -127,7 +135,7 @@ const LoginPageContent = () => {
     } finally {
       setIsVerifying(false)
     }
-  }, [isOtpComplete, isVerifying, requiresName, clearError, verifyOtp, phoneNumber, otpValues, router, redirectTo])
+  }, [isOtpComplete, isVerifying, requiresName, clearError, verifyOtp, phoneNumber, otpValues, referralCode, router, redirectTo])
 
   const handleSubmitName = useCallback(async () => {
     if (!pendingOtp || !isNameValid || isVerifying) return
@@ -136,10 +144,21 @@ const LoginPageContent = () => {
     try {
       await verifyOtp(phoneNumber, pendingOtp, trimmedName, referralCode || undefined)
       router.replace(redirectTo)
+    } catch (err) {
+      // If OTP verification fails (expired, invalid, etc.), show error
+      // Error is already set by verifyOtp in AuthContext
+      // Optionally, we could redirect back to OTP step if OTP expired
+      const errorMessage = err instanceof Error ? err.message : 'Failed to verify OTP'
+      if (errorMessage.includes('expired') || errorMessage.includes('not requested')) {
+        // If OTP expired or not found, go back to phone step to request new OTP
+        setStep('phone')
+        setPendingOtp('')
+        setOtpValues(Array(4).fill(''))
+      }
     } finally {
       setIsVerifying(false)
     }
-  }, [pendingOtp, isNameValid, isVerifying, clearError, verifyOtp, phoneNumber, trimmedName, router, redirectTo])
+  }, [pendingOtp, isNameValid, isVerifying, clearError, verifyOtp, phoneNumber, trimmedName, referralCode, router, redirectTo])
 
   return (
     <main className='relative min-h-screen overflow-hidden bg-gradient-to-br from-[#05080d] via-[#0b1220] to-[#06090f] text-white'>

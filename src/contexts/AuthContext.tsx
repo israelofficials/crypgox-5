@@ -97,10 +97,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pathname, router, loadPublicSettings])
 
   useEffect(() => {
+    if (!pathname) return
+
+    const isAdminRoute = pathname.startsWith('/admin')
+    const isLoginRoute = pathname === '/login'
+
+    if (isAdminRoute || isLoginRoute) {
+      setIsLoading(false)
+      setUserState(null)
+      setToken(null)
+      return
+    }
+
     fetchProfile()
       .catch(() => null)
       .finally(() => setIsLoading(false))
-  }, [fetchProfile])
+  }, [fetchProfile, pathname])
 
   const requestOtp = useCallback(
     async (phone: string) => {
