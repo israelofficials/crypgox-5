@@ -142,6 +142,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserState(data.user)
         setToken(data.token)
         setSettings(data.settings)
+        // Force a small delay to ensure cookie is set before redirect
+        await new Promise(resolve => setTimeout(resolve, 100))
         return data
       } catch (err) {
         return handleAxiosError(err)

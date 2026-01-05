@@ -31,9 +31,10 @@ const LoginPageContent = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace(redirectTo)
+      // Use window.location for full page reload to ensure cookies are read
+      window.location.href = redirectTo
     }
-  }, [isAuthenticated, redirectTo, router])
+  }, [isAuthenticated, redirectTo])
 
   useEffect(() => {
     if (referralParam) {
