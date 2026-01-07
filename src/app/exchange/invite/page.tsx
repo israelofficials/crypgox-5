@@ -12,7 +12,12 @@ import LoadingOverlay from '@/components/shared/LoadingOverlay'
 const buildInviteLink = (code: string | null) => {
   if (!code) return null
   const params = new URLSearchParams({ ref: code })
-  return `https://website.co/?${params.toString()}`
+  // Use current domain dynamically - works for any domain
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/login?${params.toString()}`
+  }
+  // Fallback for SSR (server-side rendering)
+  return `${process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'https://crypgox.com'}/login?${params.toString()}`
 }
 
 export default function InvitePage() {
@@ -81,7 +86,7 @@ export default function InvitePage() {
           {/* QR */}
           <div className="flex flex-col items-center gap-3">
             <div className="bg-white p-3 rounded-xl">
-              <QRCode value={inviteLink ?? 'https://website.co'} size={160} />
+              <QRCode value={inviteLink ?? (typeof window !== 'undefined' ? window.location.origin : 'https://crypgox.com')} size={160} />
             </div>
             <p className="text-xs text-white/60 text-center">
               Ask your friends to scan or use the link below to sign up.

@@ -34,7 +34,12 @@ export default function ReferralPage() {
   const inviteLink = useMemo(() => {
     if (!inviteCode) return null
     const params = new URLSearchParams({ ref: inviteCode })
-    return `${process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'https://website.co'}/login?${params.toString()}`
+    // Use current domain dynamically - works for any domain
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/login?${params.toString()}`
+    }
+    // Fallback for SSR (server-side rendering)
+    return `${process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'https://crypgox.com'}/login?${params.toString()}`
   }, [inviteCode])
 
   const stats = useMemo(() => {
@@ -250,7 +255,7 @@ export default function ReferralPage() {
             </div>
             <div className="flex justify-center">
               <div className="bg-white p-3 rounded-2xl">
-                <QRCode value={inviteLink ?? 'https://website.co'} size={140} />
+                <QRCode value={inviteLink ?? (typeof window !== 'undefined' ? window.location.origin : 'https://crypgox.com')} size={140} />
               </div>
             </div>
             <div className="space-y-3">

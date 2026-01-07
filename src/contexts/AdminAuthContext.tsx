@@ -158,6 +158,7 @@ type AdminAuthContextValue = {
   fetchUsers: (params?: FetchUsersParams) => Promise<AdminUserListResponse>
   fetchUserDetail: (userId: string) => Promise<AdminUser>
   updateUserStatus: (userId: string, status: AdminUser['status']) => Promise<AdminUser>
+  updateUserBalance: (userId: string, balance: number, reason?: string) => Promise<AdminUser>
   fetchUserTransactions: (userId: string) => Promise<AdminUserRelations>
   fetchTransactions: (params?: FetchTransactionsParams) => Promise<AdminTransactions>
   approveWithdrawal: (withdrawalId: string, input?: { txId?: string }) => Promise<unknown>
@@ -398,6 +399,25 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
     []
   )
 
+  const updateUserBalanceFn = useCallback(
+    async (userId: string, balance: number, reason?: string) => {
+      setError(null)
+      try {
+        const { data } = await apiClient.put<{ user: AdminUser }>(
+          `/admin/dashboard/users/${userId}/balance`,
+          { balance, reason }
+        )
+        setUsers((prev) => prev.map((user) => (user.id === data.user.id ? data.user : user)))
+        return data.user
+      } catch (err) {
+        const error = normalizeError(err)
+        setError(error.message)
+        throw error
+      }
+    },
+    []
+  )
+
   const fetchUserTransactions = useCallback(async (userId: string) => {
     const { data } = await apiClient.get<AdminUserRelations>(
       `/admin/dashboard/users/${userId}/transactions`
@@ -530,6 +550,7 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
       fetchUsers,
       fetchUserDetail,
       updateUserStatus: updateUserStatusFn,
+      updateUserBalance: updateUserBalanceFn,
       fetchUserTransactions,
       fetchTransactions,
       approveWithdrawal,
@@ -560,6 +581,7 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
       fetchUsers,
       fetchUserDetail,
       updateUserStatusFn,
+      updateUserBalanceFn,
       fetchUserTransactions,
       fetchTransactions,
       approveWithdrawal,

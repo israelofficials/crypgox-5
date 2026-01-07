@@ -2,7 +2,7 @@
 import Slider from 'react-infinite-logo-slider';
 
 function BrandLogo() {
-    const domains = ['crypgox.cloud', 'crypgox.com', 'www.crypgox.cloud', 'www.crypgox.com'];
+    const domains = ['crypgox.com', 'crypgox.net', 'crypgox.online', 'crypgox.org', 'crypgox.cloud'];
 
     return (
         <section>

@@ -23,6 +23,7 @@ const UsersPage = () => {
     fetchUsers,
     isUsersLoading,
     updateUserStatus,
+    updateUserBalance,
     fetchUserTransactions,
   } = useAdminAuth()
 
@@ -32,6 +33,9 @@ const UsersPage = () => {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false)
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('all')
+  const [isEditingBalance, setIsEditingBalance] = useState(false)
+  const [balanceInput, setBalanceInput] = useState('')
+  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false)
 
   const rangeParams = useMemo(() => getPresetRange(rangePreset), [rangePreset])
 
@@ -57,6 +61,12 @@ const UsersPage = () => {
       setSelectedId(users[0].id)
     }
   }, [users, selectedId])
+
+  useEffect(() => {
+    // Reset edit state when selected user changes
+    setIsEditingBalance(false)
+    setBalanceInput('')
+  }, [selectedId])
 
   const handleNavigateToDetail = useCallback(
     (userId: string) => {
@@ -110,6 +120,44 @@ const UsersPage = () => {
       setIsTransactionsLoading(false)
     }
   }, [selectedUser, fetchUserTransactions])
+
+  const handleStartEditBalance = useCallback(() => {
+    if (!selectedUser) return
+    setBalanceInput(selectedUser.balance.toString())
+    setIsEditingBalance(true)
+  }, [selectedUser])
+
+  const handleCancelEditBalance = useCallback(() => {
+    setIsEditingBalance(false)
+    setBalanceInput('')
+  }, [])
+
+  const handleSaveBalance = useCallback(async () => {
+    if (!selectedUser) return
+    const newBalance = parseFloat(balanceInput)
+    if (isNaN(newBalance) || newBalance < 0) {
+      alert('Please enter a valid non-negative number')
+      return
+    }
+
+    setIsUpdatingBalance(true)
+    try {
+      const reason = window.prompt('Enter a reason for this balance adjustment (optional):') || undefined
+      const updatedUser = await updateUserBalance(selectedUser.id, newBalance, reason)
+      // Update the selected user in the list
+      await fetchUsers({ search: query, ...rangeParams })
+      // If the updated user is the currently selected one, update the selection
+      if (updatedUser.id === selectedId) {
+        setSelectedId(updatedUser.id) // This will trigger a re-render with updated data
+      }
+      setIsEditingBalance(false)
+      setBalanceInput('')
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update balance')
+    } finally {
+      setIsUpdatingBalance(false)
+    }
+  }, [selectedUser, balanceInput, updateUserBalance, fetchUsers, query, rangeParams, selectedId])
 
   return (
     <section className="space-y-6">
@@ -231,7 +279,54 @@ const UsersPage = () => {
               </header>
 
               <dl className="grid gap-4 sm:grid-cols-2">
-                <InfoCell label="Wallet balance" value={`${formatCurrency(selectedUser.balance)} ${selectedUser.currency}`} />
+                {isEditingBalance ? (
+                  <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-white/40 mb-2">Wallet balance</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={balanceInput}
+                        onChange={(e) => setBalanceInput(e.target.value)}
+                        step="0.01"
+                        min="0"
+                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+                        placeholder="Enter balance"
+                        disabled={isUpdatingBalance}
+                      />
+                      <button
+                        onClick={handleSaveBalance}
+                        disabled={isUpdatingBalance}
+                        className="rounded-lg bg-emerald-500/20 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUpdatingBalance ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={handleCancelEditBalance}
+                        disabled={isUpdatingBalance}
+                        className="rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white/60 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-white/50">{selectedUser.currency}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-[#0b1220] p-4 group relative">
+                    <p className="text-[11px] uppercase tracking-wide text-white/40">Wallet balance</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-lg font-semibold text-white">
+                        {formatCurrency(selectedUser.balance)} {selectedUser.currency}
+                      </p>
+                      <button
+                        onClick={handleStartEditBalance}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-white/5 px-2 py-1 text-xs text-white/60 hover:bg-white/10 hover:text-white/80"
+                        title="Edit balance"
+                      >
+                        <Icon icon="solar:pen-bold" className="text-sm" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <InfoCell label="Total deposits" value={`${formatCurrency(selectedUser.stats.totalDeposits)} ${selectedUser.currency}`} />
                 <InfoCell label="Total withdrawals" value={`${formatCurrency(selectedUser.stats.totalWithdrawals)} ${selectedUser.currency}`} />
                 <InfoCell label="Joined" value={new Date(selectedUser.createdAt).toLocaleString('en-IN')} />

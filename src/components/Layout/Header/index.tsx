@@ -19,7 +19,7 @@ const Header: React.FC = () => {
   const announcementRef = useRef<HTMLDivElement>(null)
   const domainSliderRef = useRef<HTMLDivElement>(null)
 
-  const domains = ['crypgox.cloud', 'crypgox.com', 'www.crypgox.cloud', 'www.crypgox.com']
+  const domains = ['crypgox.com', 'crypgox.net', 'crypgox.online', 'crypgox.org', 'crypgox.cloud']
 
   const handleScroll = () => {
     setSticky(window.scrollY >= 80)
