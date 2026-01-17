@@ -5,7 +5,7 @@ import Image from 'next/image'
 import PageBottomBar from '@/components/Layout/PageBottomBar'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, ChangeEvent, MouseEvent, KeyboardEvent } from 'react'
 import useProtectedRoute from '@/hooks/useProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingOverlay from '@/components/shared/LoadingOverlay'
@@ -13,7 +13,8 @@ import { formatCurrency } from '@/utils/formatters'
 import apiClient from '@/lib/api'
 import type { UserWallet } from '@/types/user'
 
-const WITHDRAWAL_FEE_USDT = 1
+const WITHDRAWAL_FEE_MIN_PERCENT = 1
+const WITHDRAWAL_FEE_MAX_PERCENT = 5
 
 export default function WithdrawPage() {
   useProtectedRoute()
@@ -36,8 +37,8 @@ export default function WithdrawPage() {
       return
     }
 
-    setSelectedWalletId((prev) => {
-      if (prev && wallets.find((wallet) => wallet.id === prev)) {
+    setSelectedWalletId((prev: string | null) => {
+      if (prev && wallets.some((wallet: UserWallet) => wallet.id === prev)) {
         return prev
       }
       return wallets[0].id
@@ -52,10 +53,15 @@ export default function WithdrawPage() {
     return Number.isFinite(numeric) ? numeric : 0
   }, [amount])
 
-  const totalDebit = useMemo(() => {
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return 0
-    return parsedAmount + WITHDRAWAL_FEE_USDT
+  const maxFeeAmount = useMemo(() => {
+    if (parsedAmount <= 0) return 0
+    return (parsedAmount * WITHDRAWAL_FEE_MAX_PERCENT) / 100
   }, [parsedAmount])
+
+  const totalDebit = useMemo(() => {
+    if (parsedAmount <= 0) return 0
+    return parsedAmount + maxFeeAmount
+  }, [parsedAmount, maxFeeAmount])
 
   const insufficientBalance = totalDebit > availableBalanceNumber
 
@@ -69,7 +75,7 @@ export default function WithdrawPage() {
   const handleDeleteWallet = useCallback(
     async (walletId: string) => {
       if (deletingWalletId) return
-      const target = wallets.find((wallet) => wallet.id === walletId)
+      const target = wallets.find((wallet: UserWallet) => wallet.id === walletId)
       if (!target) return
 
       const confirmation = window.confirm(
@@ -85,7 +91,7 @@ export default function WithdrawPage() {
         if (refreshed?.wallets) {
           setWallets(refreshed.wallets)
         } else {
-          setWallets((prev) => prev.filter((wallet) => wallet.id !== walletId))
+          setWallets((prev: UserWallet[]) => prev.filter((wallet: UserWallet) => wallet.id !== walletId))
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unable to delete wallet address'
@@ -160,7 +166,7 @@ export default function WithdrawPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {wallets.map((wallet) => {
+                {wallets.map((wallet: UserWallet) => {
                   const isActive = wallet.id === selectedWalletId
                   return (
                     <button
@@ -186,12 +192,12 @@ export default function WithdrawPage() {
                                 ? 'cursor-wait'
                                 : 'hover:bg-red-500/20 hover:text-red-200 cursor-pointer'
                             }`}
-                            onClick={(event) => {
+                            onClick={(event: MouseEvent<HTMLSpanElement>) => {
                               event.stopPropagation()
                               if (deletingWalletId === wallet.id) return
                               handleDeleteWallet(wallet.id)
                             }}
-                            onKeyDown={(event) => {
+                            onKeyDown={(event: KeyboardEvent<HTMLSpanElement>) => {
                               if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault()
                                 event.stopPropagation()
@@ -219,7 +225,9 @@ export default function WithdrawPage() {
             <div className="flex items-center gap-2 border-b border-white/20 py-2">
               <input
                 value={amount}
-                onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setAmount(event.target.value.replace(/[^0-9.]/g, ''))
+                }
                 placeholder="Please enter the amount"
                 className="bg-transparent outline-none flex-1 text-lg"
               />
@@ -232,7 +240,9 @@ export default function WithdrawPage() {
                 <Image src="/money.png" alt="usdt" width={14} height={14} />
                 {availableBalance}
               </span>
-              <span className="text-white/60">Platform fee: {formatCurrency(WITHDRAWAL_FEE_USDT)} USDT</span>
+              <span className="text-white/60">
+                Platform fee: Random {WITHDRAWAL_FEE_MIN_PERCENT}% – {WITHDRAWAL_FEE_MAX_PERCENT}% applied when processed
+              </span>
             </div>
 
             {parsedAmount > 0 && (
@@ -242,16 +252,18 @@ export default function WithdrawPage() {
                   <span className="font-semibold text-white">{formatCurrency(parsedAmount)} USDT</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Fee</span>
-                  <span className="font-semibold text-white/70">{formatCurrency(WITHDRAWAL_FEE_USDT)} USDT</span>
+                  <span>Max possible fee (5%)</span>
+                  <span className="font-semibold text-white/70">{formatCurrency(maxFeeAmount)} USDT</span>
                 </div>
                 <hr className="border-white/10" />
                 <div className="flex items-center justify-between">
-                  <span>Total to be debited</span>
+                  <span>Total to be debited (up to)</span>
                   <span className="font-semibold text-emerald-300">{formatCurrency(totalDebit)} USDT</span>
                 </div>
                 <p className="text-[11px] text-white/50">
-                  You will receive {formatCurrency(parsedAmount)} USDT in your wallet once the withdrawal completes.
+                  You will receive {formatCurrency(parsedAmount)} USDT once the withdrawal completes. A random fee between{' '}
+                  {WITHDRAWAL_FEE_MIN_PERCENT}% and {WITHDRAWAL_FEE_MAX_PERCENT}% (up to {formatCurrency(maxFeeAmount)} USDT) is
+                  charged when processed.
                 </p>
               </div>
             )}

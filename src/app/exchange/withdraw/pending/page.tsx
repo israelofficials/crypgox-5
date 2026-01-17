@@ -21,6 +21,9 @@ interface WithdrawalOrder {
     label?: string
     reason?: string
     status?: string
+    feePercent?: number
+    feeAmount?: number
+    totalDebit?: number
   } | null
 }
 
@@ -85,11 +88,15 @@ function WithdrawPendingContent() {
     }
   }, [order, refreshProfile])
 
-  const network = order?.metadata?.network ?? 'TRC20'
+  const metadata = order?.metadata ?? null
+  const network = metadata?.network ?? 'TRC20'
   const amount = order?.amount ?? 0
   const destination = order?.destination ?? '—'
-  const reason = typeof order?.metadata === 'object' ? order?.metadata?.reason ?? null : null
+  const reason = typeof metadata === 'object' ? metadata?.reason ?? null : null
   const status = order?.status ?? 'PENDING'
+  const feeAmount = metadata?.feeAmount ?? null
+  const feePercent = metadata?.feePercent ?? null
+  const totalDebit = metadata?.totalDebit ?? null
 
   const statusTheme = useMemo(() => {
     switch (status) {
@@ -194,6 +201,12 @@ function WithdrawPendingContent() {
 
             <div className="rounded-lg bg-black/20 p-4 space-y-3">
               <InfoRow label="Amount" value={`${amount.toFixed(2)} USDT`} />
+              {feeAmount !== null && feePercent !== null && (
+                <InfoRow label="Fee" value={`${feeAmount.toFixed(2)} USDT (${feePercent.toFixed(2)}%)`} />
+              )}
+              {totalDebit !== null && (
+                <InfoRow label="Total debited" value={`${totalDebit.toFixed(2)} USDT`} />
+              )}
               <InfoRow label="Network" value={network} />
               <InfoRow label="Destination" value={destination} copyable />
               {order?.metadata?.label && <InfoRow label="Label" value={order.metadata.label} />}
